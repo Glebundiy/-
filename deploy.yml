@@ -1,0 +1,49 @@
+- name: Установка микросервиса с Prometheus метриками
+  hosts: vm
+  become: yes
+
+  tasks:
+    - name: Установить зависимости
+      dnf:
+        name:
+          - python3
+          - python3-pip
+        state: present
+
+    - name: Установить библиотеки Python
+      pip:
+        name:
+          - flask
+          - prometheus_client
+        executable: pip3
+
+    - name: Копировать микросервис
+      copy:
+        src: files/microservice.py
+        dest: /opt/microservice.py
+        mode: '0755'
+
+    - name: Создать systemd unit
+      copy:
+        dest: /etc/systemd/system/microservice.service
+        content: |
+          [Unit]
+          Description=Microservice with Prometheus metrics
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 /opt/microservice.py
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Перезапустить systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Включить и запустить сервис
+      systemd:
+        name: microservice
+        enabled: yes
+        state: started
